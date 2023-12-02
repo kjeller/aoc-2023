@@ -10,31 +10,15 @@ use strum_macros::EnumString;
 #[derive(Display, EnumIter, EnumString, PartialEq)]
 #[allow(non_camel_case_types)]
 enum Numeric {
-    one,
-    two,
-    three,
-    four,
-    five,
-    six,
-    seven,
-    eight,
-    nine,
-}
-
-impl Numeric {
-    fn to_digit(self) -> u64 {
-        match self {
-            Numeric::one => 1,
-            Numeric::two => 2,
-            Numeric::three => 3,
-            Numeric::four => 4,
-            Numeric::five => 5,
-            Numeric::six => 6,
-            Numeric::seven => 7,
-            Numeric::eight => 8,
-            Numeric::nine => 9,
-        }
-    }
+    one = 1,
+    two = 2,
+    three = 3,
+    four = 4,
+    five = 5,
+    six = 6,
+    seven = 7,
+    eight = 8,
+    nine = 9,
 }
 
 fn part_1() -> u32 {
@@ -73,15 +57,16 @@ fn part_2() -> u64 {
                     if c.is_numeric() {
                         matches.push(c.to_digit(10).unwrap() as u64);
                     } else {
-                        Numeric::iter().for_each(|n| {
+                        for n in Numeric::iter() {
                             let numstr = n.to_string();
                             let substring = l.get(i..i + numstr.len());
                             if let Some(s) = substring {
                                 if s == n.to_string() {
-                                    matches.push(n.to_digit());
+                                    matches.push(n as u64);
+                                    break;
                                 }
                             }
-                        });
+                        }
                     }
                 });
                 if matches.len() > 0 {
