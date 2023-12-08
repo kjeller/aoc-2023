@@ -2,6 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::vec;
 
 use strum::IntoEnumIterator;
 use strum_macros::Display;
@@ -25,14 +26,24 @@ enum CardRank {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Display, Clone, Copy)]
+
 enum ExtCardRank {
-    Joker,
+    J,
     Base(CardRank),
 }
 
-impl CardRank {
-    fn from_char(c: &char) -> CardRank {
+impl ExtCardRank {
+    fn from_char(c: &char) -> ExtCardRank {
         match c {
+            'J' => ExtCardRank::J,
+            _ => CardRank::from_char(c),
+        }
+    }
+}
+
+impl CardRank {
+    fn from_char(c: &char) -> ExtCardRank {
+        ExtCardRank::Base(match c {
             '2' => Self::_2,
             '3' => Self::_3,
             '4' => Self::_4,
@@ -47,24 +58,11 @@ impl CardRank {
             'K' => Self::K,
             'A' => Self::A,
             _ => Self::A,
-        }
-    }
-
-    fn from_char_to_ext(c: &char) -> ExtCardRank {
-        ExtCardRank::Base(Self::from_char(c))
+        })
     }
 }
 
-impl ExtCardRank {
-    fn from_char(c: &char) -> ExtCardRank {
-        match c {
-            'J' => Self::Joker,
-            _ => Self::Base(CardRank::from_char(c)),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 enum HandType {
     HighCard,
     OnePair,
@@ -86,8 +84,6 @@ impl HandType {
             .map(|c| cards.iter().filter(|c2| c2 == &c).count() - 1)
             .sum();
 
-        //println!("unique c {}, dup cnt {}", unique_c_count, dup_count);
-
         match (unique_c_count, dup_count) {
             (2, 12) => Self::FourOfAKind,
             (1, _) => Self::FiveOfAKind,
@@ -100,7 +96,7 @@ impl HandType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 struct Hand {
     hand_type: HandType,
     hand: Vec<ExtCardRank>,
@@ -121,7 +117,7 @@ fn parse(card_fun: fn(c: &char) -> ExtCardRank) -> Vec<Hand> {
             let hand = chars[0..5].iter().map(|c| card_fun(&c)).collect();
             Hand {
                 hand_type: HandType::from_card_ranks(&hand),
-                hand: hand,
+                hand,
                 bid: f
                     .split_once(char::is_whitespace)
                     .unwrap()
@@ -135,7 +131,7 @@ fn parse(card_fun: fn(c: &char) -> ExtCardRank) -> Vec<Hand> {
 }
 
 fn part_1() -> u64 {
-    let mut hand = parse(CardRank::from_char_to_ext);
+    let mut hand = parse(CardRank::from_char);
     hand.sort();
     hand.iter()
         .enumerate()
@@ -145,32 +141,32 @@ fn part_1() -> u64 {
 
 fn part_2() -> u64 {
     let mut hand = parse(ExtCardRank::from_char);
-    let mut jokercards: Vec<Vec<ExtCardRank>> = vec![];
-    hand.iter_mut().for_each(|h| {
+    for h in hand.iter_mut() {
+        let mut jokerhands: Vec<Hand> = vec![];
         CardRank::iter().for_each(|c1| {
-            let jokerhand = h
+            let jokercards = h
                 .hand
                 .iter()
                 .map(|c2| {
-                    if ExtCardRank::Base(c1) == *c2 {
+                    if c2 == &ExtCardRank::J {
                         ExtCardRank::Base(c1.to_owned())
                     } else {
                         c2.to_owned()
                     }
                 })
                 .collect::<Vec<ExtCardRank>>();
-            jokercards.push(jokerhand);
+            let hand = Hand {
+                hand_type: HandType::from_card_ranks(&jokercards),
+                hand: jokercards,
+                bid: h.bid,
+            };
+            jokerhands.push(hand);
         });
-        jokercards.sort();
-        //println!(">> replacing {:?}", h.hand);
-        h.hand = jokercards.first().unwrap().clone();
-        println!("handtype1 {:?}", h.hand_type);
-        h.hand_type = HandType::from_card_ranks(&h.hand);
+        jokerhands.sort();
 
-        println!("handtype2 {:?}", h.hand_type);
-        println!(">> with {:?}", h.hand);
-        jokercards = vec![];
-    });
+        let jokerhand = jokerhands.last().unwrap();
+        h.hand_type = jokerhand.hand_type.clone();
+    }
 
     hand.sort();
     hand.iter()
@@ -195,19 +191,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_four_of_a_kind_ext() {
-        let cards = vec![
-            ExtCardRank::Base(CardRank::Q),
-            ExtCardRank::Joker,
-            ExtCardRank::Joker,
-            ExtCardRank::Base(CardRank::Q),
-            ExtCardRank::Base(CardRank::_2),
-        ];
-        let expected = HandType::FourOfAKind;
-        assert_eq!(expected, HandType::from_card_ranks(&cards));
-    }
 
     #[test]
     fn parse_highcard() {
