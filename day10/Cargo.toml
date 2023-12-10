@@ -1,0 +1,9 @@
+[package]
+name = "aoc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num = "0.4.1"
+parse-display = "0.8.2"
+pathfinding = "4.4.0"
